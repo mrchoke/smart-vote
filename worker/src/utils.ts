@@ -64,6 +64,7 @@ export async function buildSessionPublic (
     show_voter_name: session.show_voter_name === 1,
     max_selections: session.max_selections,
     status: session.status,
+    result_mode: session.result_mode ?? 'show_immediately',
     created_at: session.created_at,
     expires_at: session.expires_at,
     options,

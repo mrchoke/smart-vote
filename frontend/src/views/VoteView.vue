@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useToast } from 'vue-toastification'
-import { useWebSocket } from '@/composables/useWebSocket'
-import { useVoteSession } from '@/composables/useVoteSession'
-import RacingBarChart from '@/components/RacingBarChart.vue'
-import VoteForm from '@/components/VoteForm.vue'
-import ShareLink from '@/components/ShareLink.vue'
-import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import AvatarPicker from '@/components/AvatarPicker.vue'
+import ConnectionStatus from '@/components/ConnectionStatus.vue'
+import RacingBarChart from '@/components/RacingBarChart.vue'
+import ShareLink from '@/components/ShareLink.vue'
 import VoteFloater from '@/components/VoteFloater.vue'
+import VoteForm from '@/components/VoteForm.vue'
+import { useI18n } from '@/composables/useI18n'
+import { useVoteSession } from '@/composables/useVoteSession'
+import { useWebSocket } from '@/composables/useWebSocket'
 import { getAvatarById, getRandomAvatar } from '@/utils/avatars'
+import { computed, onMounted, ref } from 'vue'
+import { useToast } from 'vue-toastification'
 
 const props = defineProps<{ id: string }>()
 const toast = useToast()
+const { t, lang, toggleLang } = useI18n()
 
 const {
   session,
@@ -99,15 +101,15 @@ onMessage((msg) => {
       break
     case 'session_closed':
       applySessionClosed()
-      toast.info('การโหวตถูกปิดแล้ว')
+      toast.info(t.value.sessionClosed)
       break
     case 'session_reopened':
       applySessionReopened()
-      toast.info('การโหวตเปิดใหม่แล้ว')
+      toast.info(t.value.sessionReopened)
       break
     case 'vote_accepted':
       markVoted(msg.option_ids)
-      toast.success('โหวตสำเร็จ! 🎉')
+      toast.success(t.value.voteCast)
       isSubmitting.value = false
       break
     case 'vote_cast':
@@ -149,22 +151,48 @@ async function handleAddOption() {
 const shareUrl = computed(() =>
   typeof window !== 'undefined' ? `${window.location.origin}/vote/${props.id}` : ''
 )
+
+// ── Result visibility logic ────────────────────────────────────────────────────
+const canSeeResults = computed(() => {
+  if (!session.value) return false
+  const mode = session.value.result_mode ?? 'show_immediately'
+  if (mode === 'show_immediately') return true
+  if (mode === 'after_vote') return hasVoted.value || session.value.status === 'closed'
+  if (mode === 'after_close') return session.value.status === 'closed'
+  return true
+})
+
+const RESULT_MODE_ICONS: Record<string, string> = {
+  show_immediately: '📊',
+  after_vote: '🗳️',
+  after_close: '🔒',
+}
+const RESULT_MODE_COLORS: Record<string, string> = {
+  show_immediately: 'text-teal-400 bg-teal-900/40 border-teal-800',
+  after_vote: 'text-blue-400 bg-blue-900/40 border-blue-800',
+  after_close: 'text-amber-400 bg-amber-900/40 border-amber-800',
+}
+const resultModeLabel = (mode: string) => t.value.modeBadges[mode as keyof typeof t.value.modeBadges] ?? mode
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-950 text-white">
     <!-- Top bar -->
-    <div class="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-xl">🗳️</span>
-        <span class="font-semibold text-sm truncate max-w-[200px]">{{ session?.title ?? 'Smart Vote' }}</span>
+    <div class="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-xl shrink-0">🗳️</span>
+        <span class="font-semibold text-sm truncate">{{ session?.title ?? t.appName }}</span>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          @click="toggleLang"
+          class="text-xs px-2 py-1 rounded-full border border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 transition"
+        >{{ lang === 'th' ? 'EN' : 'TH' }}</button>
         <ConnectionStatus :connected="isConnected" :connecting="isConnecting" />
         <span
           v-if="session?.status === 'closed'"
           class="text-xs bg-red-900/50 text-red-400 px-2 py-1 rounded-full"
-        >ปิดโหวตแล้ว</span>
+        >{{ t.sessionClosedLabel }}</span>
       </div>
     </div>
 
@@ -172,7 +200,7 @@ const shareUrl = computed(() =>
       <!-- Loading -->
       <div v-if="isLoading && !session" class="text-center py-20">
         <div class="text-4xl animate-pulse">⏳</div>
-        <p class="text-gray-400 mt-3">กำลังโหลด...</p>
+        <p class="text-gray-400 mt-3">{{ t.loading }}</p>
       </div>
 
       <!-- Error -->
@@ -184,12 +212,19 @@ const shareUrl = computed(() =>
       <template v-else-if="session">
         <!-- Session info -->
         <div>
-          <h1 class="text-2xl font-bold text-white">{{ session.title }}</h1>
-          <p v-if="session.description" class="text-gray-400 mt-1 text-sm">{{ session.description }}</p>
-          <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
-            <span>{{ session.total_votes }} โหวต</span>
-            <span>•</span>
-            <span>หมดอายุ {{ new Date(session.expires_at).toLocaleDateString('th-TH') }}</span>
+          <h1 class="text-2xl font-bold text-white leading-snug">{{ session.title }}</h1>
+          <p v-if="session.description" class="text-gray-400 mt-1 text-sm leading-relaxed">{{ session.description }}</p>
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            <span class="text-xs text-gray-500">{{ t.votes(session.total_votes) }}</span>
+            <span class="text-xs text-gray-600">•</span>
+            <span class="text-xs text-gray-500">{{ t.expires }} {{ new Date(session.expires_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB') }}</span>
+            <!-- Result mode badge -->
+            <span
+              v-if="session.result_mode"
+              :class="['text-xs px-2.5 py-0.5 rounded-full border font-medium', RESULT_MODE_COLORS[session.result_mode] ?? 'text-gray-400 bg-gray-800 border-gray-700']"
+            >
+              {{ RESULT_MODE_ICONS[session.result_mode] }} {{ resultModeLabel(session.result_mode) }}
+            </span>
           </div>
         </div>
 
@@ -219,7 +254,7 @@ const shareUrl = computed(() =>
           <button
             @click="profileConfirmed = false"
             class="ml-auto text-xs text-gray-500 hover:text-gray-300 transition"
-          >เปลี่ยน</button>
+          >{{ t.changeProfile }}</button>
         </div>
 
         <!-- Vote form OR already voted notice -->
@@ -234,30 +269,30 @@ const shareUrl = computed(() =>
               :disabled="selectedOptionIds.length === 0 || isSubmitting"
               class="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-900 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2"
             >
-              <span v-if="isSubmitting">⏳ กำลังส่ง...</span>
-              <span v-else>✅ ยืนยันโหวต</span>
+              <span v-if="isSubmitting">{{ t.sending }}</span>
+              <span v-else>✅ {{ t.confirmVote }}</span>
             </button>
           </div>
           <div v-else-if="hasVoted" class="bg-emerald-900/30 border border-emerald-700 rounded-xl p-4 text-center">
             <div class="text-2xl mb-1">✓</div>
-            <div class="text-emerald-400 font-medium">คุณโหวตแล้ว</div>
-            <div class="text-gray-500 text-sm mt-1">ดูผลลัพธ์ด้านล่างแบบ Realtime</div>
+            <div class="text-emerald-400 font-medium">{{ t.alreadyVoted }}</div>
+            <div class="text-gray-500 text-sm mt-1">{{ t.alreadyVotedHint }}</div>
           </div>
           <div v-else class="bg-red-900/30 border border-red-700 rounded-xl p-4 text-center">
             <div class="text-2xl mb-1">🔒</div>
-            <div class="text-red-400 font-medium">การโหวตถูกปิดแล้ว</div>
+            <div class="text-red-400 font-medium">{{ t.sessionClosed }}</div>
           </div>
         </template>
 
         <!-- Add option (if allowed) -->
         <div v-if="session.allow_add_options && session.status === 'active'" class="bg-gray-900 rounded-xl p-4">
-          <h3 class="text-sm font-medium text-gray-300 mb-3">เสนอตัวเลือกเพิ่มเติม</h3>
+          <h3 class="text-sm font-medium text-gray-300 mb-3">{{ t.proposeOption }}</h3>
           <div class="flex gap-2">
             <input
               v-model="newOptionLabel"
               type="text"
               maxlength="200"
-              placeholder="พิมพ์ตัวเลือกใหม่..."
+              :placeholder="t.proposeOptionPlaceholder"
               @keydown.enter="handleAddOption"
               class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm"
             />
@@ -266,21 +301,31 @@ const shareUrl = computed(() =>
               :disabled="!newOptionLabel.trim() || addingOption"
               class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 rounded-xl text-white text-sm font-medium transition"
             >
-              เพิ่ม
+              {{ t.submitOption }}
             </button>
           </div>
         </div>
 
         <!-- Racing bar chart -->
-        <RacingBarChart
-          :options="sortedOptions"
-          :total="session.total_votes"
-          :voted-ids="votedOptionIds"
-          :show-voter-name="session.show_voter_name"
-        />
+        <template v-if="canSeeResults">
+          <RacingBarChart
+            :options="sortedOptions"
+            :total="session.total_votes"
+            :voted-ids="votedOptionIds"
+            :show-voter-name="session.show_voter_name"
+          />
+        </template>
+        <div v-else class="bg-gray-900 border border-gray-700 rounded-2xl p-6 text-center space-y-2">
+          <div class="text-3xl">{{ RESULT_MODE_ICONS[session.result_mode ?? 'show_immediately'] ?? '🔒' }}</div>
+          <div class="text-gray-300 font-medium">
+            <template v-if="session.result_mode === 'after_vote'">{{ t.voteNowToSeeResults }}</template>
+            <template v-else-if="session.result_mode === 'after_close'">{{ t.waitForClose }}</template>
+          </div>
+          <div class="text-gray-500 text-sm">{{ t.votes(session.total_votes) }}</div>
+        </div>
 
         <!-- Share link -->
-        <ShareLink :url="shareUrl" label="แชร์ลิงก์โหวต" />
+        <ShareLink :url="shareUrl" :label="t.shareVote" />
       </template>
     </div>
   </div>

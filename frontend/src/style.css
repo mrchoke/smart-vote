@@ -13,11 +13,38 @@
   html {
     @apply antialiased;
     font-family: 'Sarabun', sans-serif;
+    /* Fluid base size: 15px on mobile → 16px on desktop */
+    font-size: clamp(15px, 1.5vw, 16px);
   }
 
   body {
     @apply bg-gray-950 text-gray-100 min-h-screen;
     font-family: 'Sarabun', sans-serif;
+    line-height: 1.6;
+  }
+
+  /* Heading scale */
+  h1 {
+    @apply text-2xl sm:text-3xl font-bold leading-tight tracking-tight;
+  }
+
+  h2 {
+    @apply text-xl sm:text-2xl font-semibold leading-snug;
+  }
+
+  h3 {
+    @apply text-base sm:text-lg font-semibold leading-snug;
+  }
+
+  /* Better tap targets on touch devices */
+  button,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* Prevent horizontal overflow on small screens */
+  * {
+    min-width: 0;
   }
 }
 

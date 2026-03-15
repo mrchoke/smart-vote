@@ -2,6 +2,7 @@
 
 export type VoteType = 'single' | 'multiple' | 'datetime' | 'time'
 export type SessionStatus = 'active' | 'closed'
+export type ResultMode = 'show_immediately' | 'after_vote' | 'after_close'
 
 // ── D1 Row Types ──────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ export interface SessionRow {
   max_selections: number | null
   admin_token: string
   status: SessionStatus
+  result_mode: ResultMode
   created_at: string
   expires_at: string
 }
@@ -73,6 +75,7 @@ export interface SessionPublic {
   show_voter_name: boolean
   max_selections: number | null
   status: SessionStatus
+  result_mode: ResultMode
   created_at: string
   expires_at: string
   options: OptionResult[]
@@ -87,6 +90,7 @@ export interface CreateSessionBody {
   require_voter_name?: boolean
   show_voter_name?: boolean
   max_selections?: number
+  result_mode?: ResultMode
   options: string[]  // initial option labels
 }
 

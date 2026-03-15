@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { cleanupExpiredSessions } from './cron'
 import { fingerprintMiddleware } from './middleware/fingerprint'
+import { rateLimitMiddleware } from './middleware/rateLimit'
 import { apiRoutes } from './routes/api'
 import { wsRoute } from './routes/ws'
 import type { Bindings, Variables } from './types'
@@ -15,9 +16,22 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 // Assign/read client fingerprint cookie for all non-WS requests
 app.use('/api/*', fingerprintMiddleware)
 
-// CORS only for API (not needed for same-origin SPA, but useful for dev)
+// Rate limiting — protects against API abuse
+app.use('/api/*', rateLimitMiddleware)
+
+// CORS: allow the deployed origin plus local dev origins
 app.use('/api/*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:8787'],
+  origin: (origin, c) => {
+    // Always allow same-origin (no Origin header) or known dev origins
+    if (!origin) return origin
+    const allowed = [
+      'http://localhost:5173',
+      'http://localhost:8787',
+      // Accept requests from the same worker host (production)
+      new URL(c.req.url).origin,
+    ]
+    return allowed.includes(origin) ? origin : null
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'X-Admin-Token'],
   credentials: true,

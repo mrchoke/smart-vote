@@ -17,6 +17,7 @@ apiRoutes.post(
     allow_add_options: z.boolean().optional().default(false),
     require_voter_name: z.boolean().optional().default(false),
     show_voter_name: z.boolean().optional().default(false),
+    result_mode: z.enum(['show_immediately', 'after_vote', 'after_close']).optional().default('show_immediately'),
     max_selections: z.number().int().min(2).optional(),
     options: z.array(z.string().min(1).max(200)).min(2).max(50),
   })),
@@ -28,9 +29,9 @@ apiRoutes.post(
 
     await db.batch([
       db.prepare(
-        `INSERT INTO sessions (id, title, description, type, allow_add_options, require_voter_name, show_voter_name, max_selections, admin_token)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(id, body.title, body.description, body.type, body.allow_add_options ? 1 : 0, body.require_voter_name ? 1 : 0, body.show_voter_name ? 1 : 0, body.max_selections ?? null, adminToken),
+        `INSERT INTO sessions (id, title, description, type, allow_add_options, require_voter_name, show_voter_name, result_mode, max_selections, admin_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(id, body.title, body.description, body.type, body.allow_add_options ? 1 : 0, body.require_voter_name ? 1 : 0, body.show_voter_name ? 1 : 0, body.result_mode, body.max_selections ?? null, adminToken),
       ...body.options.map((label, i) =>
         db.prepare('INSERT INTO options (session_id, label, sort_order) VALUES (?, ?, ?)')
           .bind(id, label, i)
@@ -78,6 +79,7 @@ apiRoutes.put(
     allow_add_options: z.boolean().optional(),
     require_voter_name: z.boolean().optional(),
     show_voter_name: z.boolean().optional(),
+    result_mode: z.enum(['show_immediately', 'after_vote', 'after_close']).optional(),
     max_selections: z.number().int().min(2).nullable().optional(),
   })),
   async (c) => {
@@ -93,6 +95,7 @@ apiRoutes.put(
     if (body.allow_add_options !== undefined) { updates.push('allow_add_options = ?'); values.push(body.allow_add_options ? 1 : 0) }
     if (body.require_voter_name !== undefined) { updates.push('require_voter_name = ?'); values.push(body.require_voter_name ? 1 : 0) }
     if (body.show_voter_name !== undefined) { updates.push('show_voter_name = ?'); values.push(body.show_voter_name ? 1 : 0) }
+    if (body.result_mode !== undefined) { updates.push('result_mode = ?'); values.push(body.result_mode) }
     if (body.max_selections !== undefined) { updates.push('max_selections = ?'); values.push(body.max_selections) }
 
     if (updates.length === 0) return c.json({ error: 'No fields to update' }, 400)

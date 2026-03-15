@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
-import { useWebSocket } from '@/composables/useWebSocket'
-import { useVoteSession } from '@/composables/useVoteSession'
+import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import RacingBarChart from '@/components/RacingBarChart.vue'
 import ShareLink from '@/components/ShareLink.vue'
-import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import VoteFloater from '@/components/VoteFloater.vue'
+import { useI18n } from '@/composables/useI18n'
+import { useVoteSession } from '@/composables/useVoteSession'
+import { useWebSocket } from '@/composables/useWebSocket'
+import type { ResultMode } from '@/types'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 
 const props = defineProps<{ id: string }>()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { t, lang, toggleLang } = useI18n()
 
 // Resolve admin token: query param → localStorage
 const adminToken = computed<string>(() => {
@@ -30,7 +33,7 @@ if (!adminToken.value) {
 
 function redirectIfUnauthorized(status: number): boolean {
   if (status === 403) {
-    toast.error('ไม่มีสิทธิ์เข้าหน้า Admin')
+    toast.error(t.value.noPermission)
     router.replace({ name: 'vote', params: { id: props.id } })
     return true
   }
@@ -61,15 +64,15 @@ onMessage((msg) => {
       break
     case 'option_added':
       applyOptionAdded(msg.option)
-      toast.info(`ตัวเลือกใหม่: "${msg.option.label}"`)
+      toast.info(t.value.newOptionAdded(msg.option.label))
       break
     case 'session_closed':
       applySessionClosed()
-      toast.warning('ปิดการโหวตแล้ว')
+      toast.warning(t.value.sessionClosed)
       break
     case 'session_reopened':
       applySessionReopened()
-      toast.success('เปิดการโหวตใหม่แล้ว')
+      toast.success(t.value.sessionReopened)
       break
     case 'error':
       toast.error(msg.message)
@@ -122,7 +125,6 @@ async function addOption() {
   if (!label) return
   send({ type: 'add_option', label })
   newOptionLabel.value = ''
-  toast.success('ส่งคำขอเพิ่มตัวเลือกแล้ว')
 }
 
 async function deleteSession() {
@@ -142,10 +144,10 @@ async function deleteSession() {
       const data = await res.json().catch(() => ({ error: 'Unknown error' }))
       throw new Error(data.error ?? `HTTP ${res.status}`)
     }
-    toast.success('ลบ session แล้ว')
+    toast.success(t.value.deleted)
     await router.push('/')
   } catch (e) {
-    toast.error(`ผิดพลาด: ${e instanceof Error ? e.message : String(e)}`)
+    toast.error(`${t.value.error}: ${e instanceof Error ? e.message : String(e)}`)
     isActioning.value = false
   }
 }
@@ -166,9 +168,8 @@ async function toggleRequireVoterName() {
     }
     const data = await res.json()
     session.value = data.session
-    toast.success(newVal ? 'เปิดให้ระบุชื่อแล้ว' : 'ปิดการระบุชื่อแล้ว')
   } catch (e) {
-    toast.error(`ผิดพลาด: ${e instanceof Error ? e.message : String(e)}`)
+    toast.error(`${t.value.error}: ${e instanceof Error ? e.message : String(e)}`)
   }
 }
 
@@ -188,9 +189,34 @@ async function toggleShowVoterName() {
     }
     const data = await res.json()
     session.value = data.session
-    toast.success(newVal ? 'แสดงชื่อในผลโหวตแล้ว' : 'แสดงเฉพาะ Avatar แล้ว')
   } catch (e) {
-    toast.error(`ผิดพลาด: ${e instanceof Error ? e.message : String(e)}`)
+    toast.error(`${t.value.error}: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
+// ── Change result_mode ────────────────────────────────────────────────────────
+const RESULT_MODES_ADMIN = computed(() => [
+  { value: 'show_immediately' as ResultMode, icon: '📊', label: t.value.resultModes.show_immediately.label, desc: t.value.resultModes.show_immediately.desc },
+  { value: 'after_vote' as ResultMode, icon: '🗳️', label: t.value.resultModes.after_vote.label, desc: t.value.resultModes.after_vote.desc },
+  { value: 'after_close' as ResultMode, icon: '🔒', label: t.value.resultModes.after_close.label, desc: t.value.resultModes.after_close.desc },
+])
+
+async function changeResultMode(mode: ResultMode) {
+  if (!session.value || session.value.result_mode === mode) return
+  try {
+    const res = await fetch(`/api/sessions/${props.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken.value },
+      body: JSON.stringify({ result_mode: mode }),
+    })
+    if (!res.ok) {
+      if (redirectIfUnauthorized(res.status)) return
+      throw new Error(`HTTP ${res.status}`)
+    }
+    const data = await res.json()
+    session.value = data.session
+  } catch (e) {
+    toast.error(`${t.value.error}: ${e instanceof Error ? e.message : String(e)}`)
   }
 }
 
@@ -229,28 +255,28 @@ async function handleImportOptions(event: Event) {
       const rows = utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][]
       labels = rows.map((r) => String(r[0] ?? '').trim()).filter((v) => v.length > 0).slice(0, 50)
     } catch {
-      toast.error('ไม่สามารถอ่านไฟล์ Excel ได้')
+      toast.error(t.value.importExcelError)
       return
     }
   } else {
-    toast.error('รองรับเฉพาะ .csv, .txt, .xlsx, .xls')
+    toast.error(t.value.importUnsupported)
     return
   }
 
-  if (labels.length === 0) { toast.error('ไม่พบตัวเลือกในไฟล์'); return }
+  if (labels.length === 0) { toast.error(t.value.importEmpty); return }
 
   // Add each label as a new option via WS
   for (const label of labels) {
     send({ type: 'add_option', label })
   }
-  toast.success(`นำเข้า ${labels.length} ตัวเลือกสำเร็จ`)
+  toast.success(t.value.importSuccess(labels.length))
 
   if (importFileRef.value) importFileRef.value.value = ''
 }
 
 // ── Export options to CSV ─────────────────────────────────────────────────────
 function exportOptionsCSV() {
-  if (!session.value || session.value.options.length === 0) { toast.error('ไม่มีตัวเลือก'); return }
+  if (!session.value || session.value.options.length === 0) { toast.error(t.value.noOptions); return }
   const rows = session.value.options.map((o) => `"${o.label.replace(/"/g, '""')}"`)
   const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -260,7 +286,7 @@ function exportOptionsCSV() {
 
 // ── Export options to Excel ───────────────────────────────────────────────────
 async function exportOptionsXLSX() {
-  if (!session.value || session.value.options.length === 0) { toast.error('ไม่มีตัวเลือก'); return }
+  if (!session.value || session.value.options.length === 0) { toast.error(t.value.noOptions); return }
   try {
     const { utils, writeFile } = await import('xlsx')
     const data = session.value.options.map((o, i) => ({ ลำดับ: i + 1, ตัวเลือก: o.label }))
@@ -275,7 +301,7 @@ async function exportOptionsXLSX() {
 
 // ── Export results to CSV ─────────────────────────────────────────────────────
 function exportResultsCSV() {
-  if (!session.value || sortedOptions.value.length === 0) { toast.error('ยังไม่มีผลโหวต'); return }
+  if (!session.value || sortedOptions.value.length === 0) { toast.error(t.value.noResults); return }
   const total = session.value.total_votes
   const header = '"ลำดับ","ตัวเลือก","จำนวนโหวต","เปอร์เซ็นต์"'
   const rows = sortedOptions.value.map((o, i) => {
@@ -290,7 +316,7 @@ function exportResultsCSV() {
 
 // ── Export results to Excel ───────────────────────────────────────────────────
 async function exportResultsXLSX() {
-  if (!session.value || sortedOptions.value.length === 0) { toast.error('ยังไม่มีผลโหวต'); return }
+  if (!session.value || sortedOptions.value.length === 0) { toast.error(t.value.noResults); return }
   try {
     const { utils, writeFile } = await import('xlsx')
     const total = session.value.total_votes
@@ -325,13 +351,19 @@ const adminUrl = computed(() =>
 <template>
   <div class="min-h-screen bg-gray-950 text-white">
     <!-- Top bar -->
-    <div class="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-xl">🗳️</span>
-        <span class="font-semibold text-sm truncate max-w-[150px]">{{ session?.title ?? 'Admin' }}</span>
-        <span class="text-xs bg-yellow-900/60 text-yellow-400 px-2 py-0.5 rounded-full">Admin</span>
+    <div class="sticky top-0 z-10 bg-gray-950/90 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-xl shrink-0">🗳️</span>
+        <span class="font-semibold text-sm truncate">{{ session?.title ?? t.admin }}</span>
+        <span class="text-xs bg-yellow-900/60 text-yellow-400 px-2 py-0.5 rounded-full shrink-0">{{ t.admin }}</span>
       </div>
-      <ConnectionStatus :connected="isConnected" :connecting="isConnecting" />
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          @click="toggleLang"
+          class="text-xs px-2 py-1 rounded-full border border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 transition"
+        >{{ lang === 'th' ? 'EN' : 'TH' }}</button>
+        <ConnectionStatus :connected="isConnected" :connecting="isConnecting" />
+      </div>
     </div>
 
     <div class="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -353,24 +385,24 @@ const adminUrl = computed(() =>
           <div class="grid grid-cols-3 gap-3 pt-2">
             <div class="bg-gray-800 rounded-xl p-3 text-center">
               <div class="text-2xl font-bold text-indigo-400">{{ session.total_votes }}</div>
-              <div class="text-xs text-gray-500 mt-1">โหวตทั้งหมด</div>
+              <div class="text-xs text-gray-500 mt-1">{{ t.totalVotes }}</div>
             </div>
             <div class="bg-gray-800 rounded-xl p-3 text-center">
               <div class="text-2xl font-bold text-purple-400">{{ session.options.length }}</div>
-              <div class="text-xs text-gray-500 mt-1">ตัวเลือก</div>
+              <div class="text-xs text-gray-500 mt-1">{{ t.optionsCount }}</div>
             </div>
             <div class="bg-gray-800 rounded-xl p-3 text-center">
               <div :class="['text-2xl font-bold', session.status === 'active' ? 'text-emerald-400' : 'text-red-400']">
                 {{ session.status === 'active' ? '🟢' : '🔴' }}
               </div>
-              <div class="text-xs text-gray-500 mt-1">{{ session.status === 'active' ? 'กำลังโหวต' : 'ปิดแล้ว' }}</div>
+              <div class="text-xs text-gray-500 mt-1">{{ session.status === 'active' ? t.statusActive : t.statusClosed }}</div>
             </div>
           </div>
         </div>
 
         <!-- Controls -->
         <div class="bg-gray-900 rounded-2xl p-5 space-y-4">
-          <h2 class="text-sm font-semibold text-gray-300">ควบคุม</h2>
+          <h2 class="text-sm font-semibold text-gray-300">{{ t.controls }}</h2>
 
           <!-- Toggle status -->
           <button
@@ -383,7 +415,7 @@ const adminUrl = computed(() =>
                 : 'bg-emerald-900/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800'
             ]"
           >
-            {{ session.status === 'active' ? '🔒 ปิดการโหวต' : '🔓 เปิดการโหวตอีกครั้ง' }}
+            {{ session.status === 'active' ? t.closeVoting : t.reopenVoting }}
           </button>
 
           <!-- Require voter name toggle -->
@@ -398,8 +430,8 @@ const adminUrl = computed(() =>
               <div class="w-10 h-6 bg-gray-600 peer-focus:ring-2 peer-focus:ring-purple-500 rounded-full peer peer-checked:bg-purple-600 transition after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
             <div>
-              <div class="text-sm font-medium text-gray-300">🎭 ให้ผู้โหวตตั้งชื่อและเลือก Avatar</div>
-              <div class="text-xs text-gray-500">ผู้โหวตต้องระบุชื่อและ Avatar ก่อนโหวต</div>
+              <div class="text-sm font-medium text-gray-300">{{ t.requireVoterName }}</div>
+              <div class="text-xs text-gray-500">{{ t.requireVoterNameHint }}</div>
             </div>
           </div>
 
@@ -415,34 +447,56 @@ const adminUrl = computed(() =>
               <div class="w-10 h-6 bg-gray-600 peer-focus:ring-2 peer-focus:ring-purple-500 rounded-full peer peer-checked:bg-purple-600 transition after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4"></div>
             </label>
             <div>
-              <div class="text-sm font-medium text-gray-300">📛 แสดงชื่อผู้โหวตในผลลัพธ์</div>
-              <div class="text-xs text-gray-500">ปิด = แสดงเฉพาะ Avatar (ค่าเริ่มต้น)</div>
+              <div class="text-sm font-medium text-gray-300">{{ t.showVoterName }}</div>
+              <div class="text-xs text-gray-500">{{ t.showVoterNameHint }}</div>
+            </div>
+          </div>
+
+          <!-- Result mode selector -->
+          <div class="space-y-2">
+            <p class="text-xs font-medium text-gray-400">{{ t.resultModeLabel }}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                v-for="rm in RESULT_MODES_ADMIN"
+                :key="rm.value"
+                type="button"
+                @click="changeResultMode(rm.value)"
+                :class="[
+                  'flex items-start gap-3 p-3 rounded-xl border text-left transition',
+                  session.result_mode === rm.value
+                    ? 'border-teal-600 bg-teal-950 text-white'
+                    : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500'
+                ]"
+              >
+                <span class="text-xl shrink-0 mt-0.5">{{ rm.icon }}</span>
+                <div>
+                  <div class="text-xs font-semibold leading-tight">{{ rm.label }}</div>
+                  <div class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ rm.desc }}</div>
+                </div>
+              </button>
             </div>
           </div>
 
           <!-- Add option (manual) + Import -->
           <div>
             <div class="flex items-center justify-between mb-2">
-              <p class="text-xs text-gray-500">เพิ่มตัวเลือก</p>
+              <p class="text-xs text-gray-500">{{ t.addOptionLabel }}</p>
               <div class="flex gap-2">
                 <button
                   type="button"
                   @click="exportOptionsCSV"
-                  title="Export ตัวเลือกเป็น CSV"
                   class="text-xs text-gray-400 hover:text-gray-200 px-2 py-0.5 rounded-lg hover:bg-gray-700 transition"
                 >⬇️ CSV</button>
                 <button
                   type="button"
                   @click="exportOptionsXLSX"
-                  title="Export ตัวเลือกเป็น Excel"
                   class="text-xs text-gray-400 hover:text-gray-200 px-2 py-0.5 rounded-lg hover:bg-gray-700 transition"
                 >⬇️ Excel</button>
                 <button
                   type="button"
                   @click="() => importFileRef?.click()"
-                  title="Import ตัวเลือกจาก CSV / Excel"
                   class="text-xs text-indigo-400 hover:text-indigo-300 px-2 py-0.5 rounded-lg hover:bg-indigo-900/30 transition"
-                >⬆️ นำเข้า</button>
+                >⬆️ {{ t.importOptions }}</button>
                 <input ref="importFileRef" type="file" accept=".csv,.txt,.xlsx,.xls" class="hidden" @change="handleImportOptions" />
               </div>
             </div>
@@ -469,7 +523,7 @@ const adminUrl = computed(() =>
         <!-- Results + Export -->
         <div>
           <div class="flex items-center justify-end gap-2 mb-3">
-            <span class="text-xs text-gray-500 mr-auto">Export ผลโหวต:</span>
+            <span class="text-xs text-gray-500 mr-auto">{{ t.exportResults }}:</span>
             <button @click="exportResultsCSV" class="text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition">📄 CSV</button>
             <button @click="exportResultsXLSX" class="text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition">📊 Excel</button>
             <button @click="exportResultsImage" class="text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition">🖼️ PNG</button>
@@ -479,13 +533,13 @@ const adminUrl = computed(() =>
 
         <!-- Share links -->
         <div class="space-y-3">
-          <ShareLink :url="shareUrl" label="ลิงก์โหวตสำหรับแชร์" />
-          <ShareLink :url="adminUrl" label="ลิงก์ Admin (เก็บเป็นความลับ!)" />
+          <ShareLink :url="shareUrl" :label="t.shareVoteLink" />
+          <ShareLink :url="adminUrl" :label="t.shareAdminLink" />
         </div>
 
         <!-- Danger zone -->
         <div class="bg-red-950/30 border border-red-900 rounded-2xl p-5">
-          <h3 class="text-sm font-semibold text-red-400 mb-3">⚠️ Danger Zone</h3>
+          <h3 class="text-sm font-semibold text-red-400 mb-3">{{ t.dangerZone }}</h3>
           <button
             @click="deleteSession"
             :disabled="isActioning"
@@ -496,10 +550,10 @@ const adminUrl = computed(() =>
                 : 'bg-transparent text-red-400 border-red-800 hover:bg-red-900/30'
             ]"
           >
-            {{ confirmDelete ? '⚠️ ยืนยัน: ลบ session นี้จริงๆ?' : '🗑️ ลบ session นี้' }}
+            {{ confirmDelete ? t.confirmDelete : t.deleteSession }}
           </button>
           <p v-if="confirmDelete" class="text-xs text-red-500 text-center mt-2">
-            คลิกอีกครั้งเพื่อยืนยัน หรือรอ 5 วินาทีเพื่อยกเลิก
+            {{ t.confirmDeleteHint }}
           </p>
         </div>
       </template>

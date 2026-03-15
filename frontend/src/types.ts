@@ -1,5 +1,6 @@
 export type VoteType = 'single' | 'multiple' | 'datetime' | 'time'
 export type SessionStatus = 'active' | 'closed'
+export type ResultMode = 'show_immediately' | 'after_vote' | 'after_close'
 
 export interface VoterInfo {
   avatar_id: number
@@ -26,6 +27,7 @@ export interface SessionPublic {
   show_voter_name: boolean
   max_selections: number | null
   status: SessionStatus
+  result_mode: ResultMode
   created_at: string
   expires_at: string
   options: OptionResult[]
