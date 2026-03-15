@@ -120,13 +120,68 @@ cd worker && wrangler dev --local
 cd frontend && pnpm dev
 ```
 
-### 5. Deploy to Cloudflare
+### 5. Deploy to Cloudflare (manual)
 
 ```bash
-# From root
-pnpm build   # builds frontend/dist
-cd worker && wrangler deploy
+# From root — builds frontend + applies migrations + deploys worker
+pnpm deploy
 ```
+
+Or step-by-step:
+
+```bash
+cd frontend && pnpm build      # build Vue SPA → frontend/dist
+cd ../worker
+pnpm exec wrangler d1 migrations apply smart-vote-db --remote --yes
+pnpm exec wrangler deploy
+```
+
+---
+
+## CI/CD — GitHub Actions
+
+เมื่อ push ขึ้น `main` จะ deploy อัตโนมัติผ่าน `.github/workflows/deploy.yml`
+
+### ตั้งค่า GitHub Secrets
+
+ไปที่ **GitHub repo → Settings → Secrets and variables → Actions** แล้วเพิ่ม:
+
+| Secret | วิธีหา |
+|--------|-------|
+| `CLOUDFLARE_API_TOKEN` | [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens) → **Create Token** → ใช้ template **Edit Cloudflare Workers** แล้วเพิ่ม permission `D1:Edit` ด้วย |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard → Home → ด้านขวามือ **Account ID** |
+
+### สร้าง Cloudflare API Token
+
+1. ไปที่ https://dash.cloudflare.com/profile/api-tokens
+2. คลิก **Create Token**
+3. ใช้ template **Edit Cloudflare Workers**
+4. เพิ่ม permission เพิ่มเติม:
+   - `Account > D1 > Edit`
+5. คลิก **Continue to summary** → **Create Token**
+6. Copy token แล้วไปใส่ใน GitHub Secret `CLOUDFLARE_API_TOKEN`
+
+### Deploy pipeline
+
+```
+push to main
+    │
+    ▼
+pnpm install (frozen-lockfile)
+    │
+    ▼
+pnpm build  (vue-tsc + vite build → frontend/dist)
+    │
+    ▼
+wrangler d1 migrations apply --remote   (D1 schema migrations)
+    │
+    ▼
+wrangler deploy  (Worker + Static Assets)
+```
+
+### Manual trigger
+
+สามารถ trigger deploy เองได้ที่ **GitHub repo → Actions → Deploy to Production → Run workflow**
 
 ## API Reference
 
