@@ -1,0 +1,35 @@
+name = "smart-vote"
+main = "src/index.ts"
+compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Static assets (Vue SPA) ──────────────────────────
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# ── D1 Database ───────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "smart-vote-db"
+database_id = "094f491d-b8cc-46f7-a92a-54a53772986a"
+migrations_dir = "migrations"
+
+# ── Durable Objects ───────────────────────────────────
+[durable_objects]
+bindings = [
+  { name = "VOTE_ROOM", class_name = "VoteRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VoteRoom"]
+
+# ── Triggers (cron) ───────────────────────────────────
+[triggers]
+crons = ["0 2 * * *"]
+
+# ── Secrets (set via `wrangler secret put`) ───────────
+# ADMIN_SECRET — optional global superadmin override

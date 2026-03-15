@@ -1,0 +1,54 @@
+# Node
+node_modules/
+
+# Monorepo build outputs
+dist/
+frontend/dist/
+worker/dist/
+
+# Wrangler / Cloudflare
+.wrangler/
+worker/.wrangler/
+
+# pnpm
+pnpm-lock.yaml
+
+# Local env files
+.env
+.env.*.local
+.env.local
+.dev.vars
+*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+.history/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Databases / caches
+*.sqlite
+*.db
+.parcel-cache/
+.turbo/
+
+# Secrets
+.secret*
+
+# Other
+frontend/node_modules/
+worker/node_modules/
