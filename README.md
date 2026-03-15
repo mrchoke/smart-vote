@@ -132,7 +132,7 @@ Or step-by-step:
 ```bash
 cd frontend && pnpm build      # build Vue SPA → frontend/dist
 cd ../worker
-pnpm exec wrangler d1 migrations apply smart-vote-db --remote --yes
+pnpm exec wrangler d1 migrations apply smart-vote-db --remote 
 pnpm exec wrangler deploy
 ```
 
