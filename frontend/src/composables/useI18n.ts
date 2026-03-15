@@ -162,6 +162,68 @@ const TH = {
   importExcelError: 'ไม่สามารถอ่านไฟล์ Excel ได้',
   noOptions: 'ยังไม่มีตัวเลือก',
   noResults: 'ยังไม่มีผลโหวต',
+
+  // Help & About
+  helpTitle: 'คู่มือการใช้งาน',
+  helpClose: 'ปิด',
+  helpSections: [
+    {
+      icon: '🗳️',
+      title: 'สร้างโหวต',
+      steps: [
+        'ตั้งคำถามและคำอธิบาย (ไม่บังคับ)',
+        'เลือกรูปแบบโหวต: เลือก 1 ข้อ / หลายข้อ / วันเวลา / เวลา',
+        'เลือกโหมดแสดงผล: แบบ Realtime / โหวตก่อนดูผล / ปิดโหวตก่อนดูผล',
+        'เพิ่มตัวเลือก (พิมพ์เอง หรือนำเข้าจาก CSV / Excel)',
+        'กด "สร้างโหวต" แล้วแชร์ลิงก์โหวตให้ผู้เข้าร่วม',
+      ],
+    },
+    {
+      icon: '📤',
+      title: 'นำเข้าตัวเลือกจากไฟล์',
+      steps: [
+        'ดาวน์โหลดไฟล์ตัวอย่าง CSV หรือ Excel ก่อน',
+        'แก้ไขตัวเลือกในไฟล์ (หนึ่งบรรทัดต่อหนึ่งตัวเลือก)',
+        'กดปุ่ม ⬆️ นำเข้า แล้วเลือกไฟล์',
+        'รองรับ .csv, .txt, .xlsx, .xls',
+      ],
+    },
+    {
+      icon: '📊',
+      title: 'โหมดแสดงผล',
+      steps: [
+        '📊 แสดงผลเลย — ทุกคนเห็นผลแบบ Realtime ตลอดเวลา',
+        '🗳️ โหวตก่อน แล้วแสดงผล — เห็นผลได้หลังโหวตเสร็จ',
+        '🔒 ปิดโหวตก่อนแสดงผล — เห็นผลได้หลัง Admin ปิดการโหวต',
+      ],
+    },
+    {
+      icon: '🔑',
+      title: 'ลิงก์ Admin',
+      steps: [
+        'หลังสร้างโหวต คุณจะได้รับลิงก์ Admin อัตโนมัติ',
+        'ใช้ลิงก์ Admin เพื่อเปิด/ปิดโหวต เพิ่มตัวเลือก และลบ session',
+        'เก็บลิงก์ Admin เป็นความลับ ห้ามแชร์ให้ผู้โหวต',
+        'ลิงก์โหวตทั่วไปใช้แชร์สาธารณะได้อย่างปลอดภัย',
+      ],
+    },
+  ] as { icon: string; title: string; steps: string[] }[],
+
+  aboutTitle: 'เกี่ยวกับ Smart Vote',
+  aboutTagline: 'ระบบโหวตอัจฉริยะแบบ Realtime',
+  aboutDesc: 'Smart Vote เป็นระบบโหวตออนไลน์แบบ Realtime ที่ใช้งานง่าย รองรับการโหวตหลายรูปแบบ แสดงผล Live Chart และรองรับผู้ใช้พร้อมกันหลายคน',
+  aboutBuiltWith: 'เทคโนโลยีที่ใช้',
+  aboutStack: [
+    { icon: '⚡', name: 'Cloudflare Workers + Durable Objects', desc: 'Backend + Realtime WebSocket' },
+    { icon: '🗄️', name: 'Cloudflare D1', desc: 'Database (SQLite)' },
+    { icon: '💚', name: 'Vue 3 + TypeScript', desc: 'Frontend Framework' },
+    { icon: '🎨', name: 'Tailwind CSS v4', desc: 'Styling' },
+    { icon: '⚡', name: 'Vite', desc: 'Build Tool' },
+  ] as { icon: string; name: string; desc: string }[],
+  aboutAI: 'พัฒนาด้วย AI 100%',
+  aboutAIDesc: 'โปรเจกต์นี้พัฒนาโดย AI (GitHub Copilot / Claude) ทั้งหมด ตามคำร้องขอของ',
+  aboutAuthor: 'MrChoke',
+  aboutVersion: 'เวอร์ชัน',
 } as const
 
 const EN = {
@@ -284,6 +346,68 @@ const EN = {
   importExcelError: 'Could not read Excel file',
   noOptions: 'No options yet',
   noResults: 'No votes yet',
+
+  // Help & About
+  helpTitle: 'User Guide',
+  helpClose: 'Close',
+  helpSections: [
+    {
+      icon: '🗳️',
+      title: 'Create a Vote',
+      steps: [
+        'Set a question and optional description',
+        'Choose vote type: single / multiple / date-time / time',
+        'Choose result mode: real-time / vote first / close first',
+        'Add options (type manually or import from CSV / Excel)',
+        'Click "Create Vote" and share the vote link with participants',
+      ],
+    },
+    {
+      icon: '📤',
+      title: 'Import Options from File',
+      steps: [
+        'Download the CSV or Excel template first',
+        'Edit your options in the file (one option per line)',
+        'Click ⬆️ Import and select your file',
+        'Supported formats: .csv, .txt, .xlsx, .xls',
+      ],
+    },
+    {
+      icon: '📊',
+      title: 'Result Modes',
+      steps: [
+        '📊 Show immediately — everyone sees results in real-time',
+        '🗳️ Vote first, then show — results visible only after voting',
+        '🔒 Show after close — results visible only after admin closes the poll',
+      ],
+    },
+    {
+      icon: '🔑',
+      title: 'Admin Link',
+      steps: [
+        'After creating a vote, you receive an Admin link automatically',
+        'Use the Admin link to open/close voting, add options, or delete the session',
+        'Keep the Admin link secret — never share it with voters',
+        'The regular vote link is safe to share publicly',
+      ],
+    },
+  ] as { icon: string; title: string; steps: string[] }[],
+
+  aboutTitle: 'About Smart Vote',
+  aboutTagline: 'Real-time Smart Voting System',
+  aboutDesc: 'Smart Vote is an easy-to-use real-time online voting system supporting multiple vote types, live bar chart results, and concurrent multi-user voting.',
+  aboutBuiltWith: 'Built With',
+  aboutStack: [
+    { icon: '⚡', name: 'Cloudflare Workers + Durable Objects', desc: 'Backend + Realtime WebSocket' },
+    { icon: '🗄️', name: 'Cloudflare D1', desc: 'Database (SQLite)' },
+    { icon: '💚', name: 'Vue 3 + TypeScript', desc: 'Frontend Framework' },
+    { icon: '🎨', name: 'Tailwind CSS v4', desc: 'Styling' },
+    { icon: '⚡', name: 'Vite', desc: 'Build Tool' },
+  ] as { icon: string; name: string; desc: string }[],
+  aboutAI: '100% AI-Built',
+  aboutAIDesc: 'This project was developed entirely by AI (GitHub Copilot / Claude) at the request of',
+  aboutAuthor: 'MrChoke',
+  aboutVersion: 'Version',
 } as const
 
 export type Translations = typeof TH

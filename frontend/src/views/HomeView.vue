@@ -9,6 +9,8 @@ const router = useRouter()
 const toast = useToast()
 const { t, lang, toggleLang } = useI18n()
 
+const helpOpen = ref(false)
+const aboutOpen = ref(false)
 const isSubmitting = ref(false)
 const title = ref('')
 const description = ref('')
@@ -207,11 +209,21 @@ async function handleSubmit() {
         <div class="text-5xl mb-3">🗳️</div>
         <h1 class="text-3xl font-extrabold text-white tracking-tight">{{ t.appName }}</h1>
         <p class="text-gray-400 mt-2 text-base">{{ t.tagline }}</p>
-        <!-- Language switcher -->
-        <button
-          @click="toggleLang"
-          class="mt-3 text-xs px-3 py-1.5 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition"
-        >{{ lang === 'th' ? '🇬🇧 English' : '🇹🇭 ภาษาไทย' }}</button>
+        <!-- Language switcher + Help + About -->
+        <div class="mt-3 flex items-center justify-center gap-2">
+          <button
+            @click="toggleLang"
+            class="text-xs px-3 py-1.5 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition"
+          >{{ lang === 'th' ? '🇬🇧 English' : '🇹🇭 ภาษาไทย' }}</button>
+          <button
+            @click="helpOpen = true"
+            class="text-xs px-3 py-1.5 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition"
+          >❓ {{ lang === 'th' ? 'คู่มือ' : 'Guide' }}</button>
+          <button
+            @click="aboutOpen = true"
+            class="text-xs px-3 py-1.5 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition"
+          >ℹ️ About</button>
+        </div>
       </div>
 
       <form @submit.prevent="handleSubmit" class="bg-gray-900 rounded-2xl p-5 sm:p-8 space-y-6 shadow-2xl">
@@ -441,4 +453,91 @@ async function handleSubmit() {
       </form>
     </div>
   </div>
+
+  <!-- Help Dialog -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="helpOpen"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      >
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="helpOpen = false" />
+        <div class="relative w-full max-w-lg bg-gray-900 rounded-2xl shadow-2xl max-h-[88vh] flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <h2 class="text-lg font-bold text-white">❓ {{ t.helpTitle }}</h2>
+            <button @click="helpOpen = false" class="text-gray-500 hover:text-white transition text-xl leading-none">&times;</button>
+          </div>
+          <div class="overflow-y-auto px-5 py-4 space-y-5">
+            <div v-for="sec in t.helpSections" :key="sec.title" class="space-y-2">
+              <h3 class="font-semibold text-white flex items-center gap-2">
+                <span>{{ sec.icon }}</span><span>{{ sec.title }}</span>
+              </h3>
+              <ol class="space-y-1.5 pl-1">
+                <li v-for="(step, i) in sec.steps" :key="i" class="flex gap-2 text-sm text-gray-300">
+                  <span class="text-indigo-400 font-semibold shrink-0 w-5 text-right">{{ i + 1 }}.</span>
+                  <span>{{ step }}</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+          <div class="px-5 py-4 border-t border-gray-800">
+            <button
+              @click="helpOpen = false"
+              class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition text-sm"
+            >{{ t.helpClose }}</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- About Dialog -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="aboutOpen"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      >
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="aboutOpen = false" />
+        <div class="relative w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl max-h-[88vh] flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <h2 class="text-lg font-bold text-white">🗳️ {{ t.aboutTitle }}</h2>
+            <button @click="aboutOpen = false" class="text-gray-500 hover:text-white transition text-xl leading-none">&times;</button>
+          </div>
+          <div class="overflow-y-auto px-5 py-5 space-y-5">
+            <div class="text-center">
+              <div class="text-4xl mb-2">🗳️</div>
+              <div class="text-xl font-extrabold text-white">{{ t.appName }}</div>
+              <div class="text-gray-400 text-sm mt-1">{{ t.aboutTagline }}</div>
+            </div>
+            <p class="text-gray-300 text-sm leading-relaxed">{{ t.aboutDesc }}</p>
+            <div>
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{{ t.aboutBuiltWith }}</div>
+              <ul class="space-y-2">
+                <li v-for="item in t.aboutStack" :key="item.name" class="flex items-start gap-3">
+                  <span class="text-lg shrink-0">{{ item.icon }}</span>
+                  <div>
+                    <div class="text-sm font-medium text-white">{{ item.name }}</div>
+                    <div class="text-xs text-gray-500">{{ item.desc }}</div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="bg-indigo-950/60 border border-indigo-800 rounded-xl p-4 text-center space-y-1">
+              <div class="text-indigo-300 font-semibold text-sm">🤖 {{ t.aboutAI }}</div>
+              <div class="text-gray-400 text-xs leading-relaxed">
+                {{ t.aboutAIDesc }}
+                <span class="text-indigo-400 font-semibold"> {{ t.aboutAuthor }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
+
+<style scoped>
+.modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+</style>
