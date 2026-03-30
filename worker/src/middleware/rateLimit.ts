@@ -92,20 +92,22 @@ export const rateLimitMiddleware = createMiddleware<{
 
   const { allowed, remaining, resetAt } = check(key, limit, windowMs)
 
-  c.res = new Response(c.res?.body, c.res)
-  c.header('X-RateLimit-Limit', String(limit))
-  c.header('X-RateLimit-Remaining', String(remaining))
-  c.header('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)))
-
   if (!allowed) {
     return c.json(
       { error: 'Too many requests. Please try again later.' },
       429,
       {
+        'X-RateLimit-Limit': String(limit),
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(Math.ceil(resetAt / 1000)),
         'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)),
       }
     )
   }
 
   await next()
+
+  c.header('X-RateLimit-Limit', String(limit))
+  c.header('X-RateLimit-Remaining', String(remaining))
+  c.header('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)))
 })
